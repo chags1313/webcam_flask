@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Holistic Camera</title>
     <style>
         .container {
@@ -54,6 +55,22 @@
 
     let cumulativeCalories = 0; // To hold the cumulative calorie count
     let lastCalorieCount = 0; // To hold the last displayed calorie count
+
+    navigator.getWebcam = (navigator.getUserMedia || navigator.webKitGetUserMedia || navigator.moxGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
+    if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({  audio: true, video: true })
+        .then(function (stream) {
+                    //Display the video stream in the video object
+        })
+        .catch(function (e) { logError(e.name + ": " + e.message); });
+    }
+    else {
+    navigator.getWebcam({ audio: true, video: true }, 
+        function (stream) {
+                //Display the video stream in the video object
+        }, 
+        function () { logError("Web cam is not accessible."); });
+    }
 
     function onResults(results) {
         // Check if the segmentation mask is available before drawing
@@ -159,3 +176,4 @@
 </script>
 </body>
 </html>
+
