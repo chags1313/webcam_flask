@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.2/landmark_grid.css" crossorigin="anonymous">
-  <meta charset="utf-8">
-  <link rel="icon" href="favicon.ico">
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.css" crossorigin="anonymous">
-
-  <link rel="stylesheet" type="text/css" href="demo.css" crossorigin="anonymous">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.2/control_utils_3d.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js" crossorigin="anonymous"></script>
-
-
 <head>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.2/landmark_grid.css" crossorigin="anonymous">
+    <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.css" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="demo.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.2/control_utils_3d.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="path/to/fontawesome/css/fontawesome.min.css">
+
+
     <style>
 @keyframes spin {
   0% {
@@ -104,9 +104,9 @@ body {
 }
 
 .control-panel {
-  position: absolute;
-  left: 10px;
-  top: 10px;
+  position: sticky;
+  left: 0px;
+  top: 400px;
 }
 
 .loading {
@@ -147,19 +147,73 @@ body {
   font-size: 24px;
   position: absolute;
 }
+        /* Style for the "Save Keypoints to CSV" button */
 
-        /* Add your other CSS styles here */
+/* Style for the "Save Keypoints to CSV" button */
+.appbar {
+    background-color: #333;
+    color: white;
+    padding: 10px;
+    position: absolute;
+    top: 0; /* Adjust as needed */
+    right: 0; /* Adjust as needed */
+    z-index: 1; /* Ensure it's above other content */
+}
+
+#saveKeypointsButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+/* CSS for the Modern Floating Action Button (FAB) */
+.fab {
+    position: fixed;
+    bottom: 20px; /* Adjust the distance from the bottom as needed */
+    right: 20px; /* Adjust the distance from the right as needed */
+    background-color: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 95px;
+    height: 95px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 2; /* Ensure it's above other content */
+    transition: background-color 0.2s ease-in-out;
+}
+
+.fab:hover {
+    background-color: #b3000043;
+}
+
+/* Optional: Add an icon using a Font Awesome class */
+.fab i {
+    font-size: inherit;
+}
+
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <video class="input_video"></video>
+      <div class="container">
+        <video class="input_video" autoplay></video>
         <canvas class="output_canvas" width="1280px" height="720px"></canvas>
         <div class="loading">
             <div class="spinner"></div>
         </div>
-
+        <div class="appbar">
+            <button id="saveKeypointsButton">Save</button>
+        </div>
+        <button class="fab" id="recordButton">Record
+          <i class="fas fa-circle"></i> <!-- FontAwesome record icon -->
+        </button>
     </div>
     <div class="control-panel">
     </div>
@@ -168,36 +222,54 @@ body {
         </div>
     </div>
 
+
     <!-- JavaScript code begins here -->
-    <script>
-const controls = window;
-const LandmarkGrid = window.LandmarkGrid;
-const drawingUtils = window;
-const mpPose = window;
-const options = {
+<script>
+  const controls = window;
+  const LandmarkGrid = window.LandmarkGrid;
+  const drawingUtils = window;
+  const mpPose = window;
+  const options = {
     locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${mpPose.VERSION}/${file}`;
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${mpPose.VERSION}/${file}`;
     }
-};
-// Our input frames will come from here.
-const videoElement = document.getElementsByClassName("input_video")[0];
-const canvasElement = document.getElementsByClassName("output_canvas")[0];
-const controlsElement = document.getElementsByClassName("control-panel")[0];
-const canvasCtx = canvasElement.getContext("2d");
-// We'll add this to our control panel later, but we'll save it here so we can
-// call tick() each time the graph runs.
-const fpsControl = new controls.FPS();
-// Optimization: Turn off animated spinner after its hiding animation is done.
-const spinner = document.querySelector(".loading");
-spinner.ontransitionend = () => {
+  };
+
+  // Our input frames will come from here.
+  const videoElement = document.getElementsByClassName("input_video")[0];
+  const canvasElement = document.getElementsByClassName("output_canvas")[0];
+  const controlsElement = document.getElementsByClassName("control-panel")[0];
+  const canvasCtx = canvasElement.getContext("2d");
+  const recordButton = document.getElementById("recordButton");
+
+  async function startCamera() {
+    try {
+      // Get user media (camera access) with constraints
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+      // Assign the stream to the video element's srcObject to display the camera feed
+      videoElement.srcObject = stream;
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+    }
+  }
+
+  // We'll add this to our control panel later, but we'll save it here so we can
+  // call tick() each time the graph runs.
+  const fpsControl = new controls.FPS();
+
+  // Optimization: Turn off animated spinner after its hiding animation is done.
+  const spinner = document.querySelector(".loading");
+  spinner.ontransitionend = () => {
     spinner.style.display = "none";
-};
-const landmarkContainer = document.getElementsByClassName("landmark-grid-container")[0];
-const grid = new LandmarkGrid(landmarkContainer, {
+  };
+
+  const landmarkContainer = document.getElementsByClassName("landmark-grid-container")[0];
+  const grid = new LandmarkGrid(landmarkContainer, {
     connectionColor: 0xcccccc,
     definedColors: [
-        { name: "LEFT", value: 0xffa500 },
-        { name: "RIGHT", value: 0x00ffff }
+      { name: "LEFT", value: 0xffa500 },
+      { name: "RIGHT", value: 0x00ffff }
     ],
     range: 2,
     fitToGrid: true,
@@ -206,16 +278,128 @@ const grid = new LandmarkGrid(landmarkContainer, {
     numCellsPerAxis: 4,
     showHidden: false,
     centered: true
-});
-let activeEffect = "mask";
-function onResults(results) {
-    // Hide the spinner.
-    document.body.classList.add("loaded");
-    // Update the frame rate.
-    fpsControl.tick();
-    // Draw the overlays.
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  });
+
+  let activeEffect = "mask";
+
+  // Define variables to keep track of recording state and keypoints data
+  let isRecording = false; // Flag to track recording state
+  let keypointsData = []; // Array to store keypoints data
+  let startTime; // Record start time
+
+  // Function to format timestamps as "DD/MM/YYYY HH:MM:SS.ff"
+// Function to format timestamps as "DD/MM/YYYY HH:MM:SS.ff"
+function formatTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
+  // Function to export keypoints data to CSV
+  function exportKeypointsToCSV() {
+    const csvContent =
+      "timestamp,landmarkIndex,x,y,z,label\n" +
+      keypointsData
+        .map((keypoint) => {
+          return `${formatTimestamp(keypoint.timestamp)},${keypoint.landmarkIndex},${keypoint.x},${keypoint.y},${keypoint.z},${keypoint.label}`;
+        })
+        .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = 'keypoints_data.csv';
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Event listener for the "Record" button
+  recordButton.addEventListener("click", () => {
+    if (!isRecording) {
+      // Start recording
+      isRecording = true;
+      startTime = new Date().getTime(); // Record the start time
+      recordButton.textContent = "Stop"; // Change button text to "Stop"
+      recordButton.classList.add("recording"); // Apply a style for recording (optional)
+      keypointsData = []; // Clear keypoints data
+    } else {
+      // Stop recording
+      isRecording = false;
+      recordButton.textContent = "Record"; // Change button text back to "Record"
+      recordButton.classList.remove("recording"); // Remove the recording style (optional)
+    }
+  });
+
+  // Function to process and record keypoints
+  function onResults(results) {
+  // Hide the spinner.
+  document.body.classList.add("loaded");
+
+  // Update the frame rate.
+  fpsControl.tick();
+
+  // Draw the overlays.
+  canvasCtx.save();
+  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+  if (results.segmentationMask) {
+    canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
+
+    // Only overwrite existing pixels.
+    if (activeEffect === "mask" || activeEffect === "both") {
+      canvasCtx.globalCompositeOperation = "source-in";
+      // This can be a color or a texture or whatever...
+      canvasCtx.fillStyle = "#00FF007F";
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    } else {
+      canvasCtx.globalCompositeOperation = "source-out";
+      canvasCtx.fillStyle = "#0000FF7F";
+      canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    }
+
+    // Only overwrite missing pixels.
+    canvasCtx.globalCompositeOperation = "destination-atop";
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.globalCompositeOperation = "source-over";
+  } else {
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+  }
+
+  if (results.poseLandmarks && isRecording) {
+    const timestamp = new Date().getTime() - startTime; // Calculate timestamp
+    const keypoints = results.poseLandmarks.map((landmark, index) => {
+      // Define labels for keypoints based on the joint
+      const keypointNames = [
+        "Nose", "Left Eye Inner", "Left Eye", "Left Eye Outer", "Right Eye Inner",
+        "Right Eye", "Right Eye Outer", "Left Ear", "Right Ear", "Mouth Left",
+        "Mouth Right", "Left Shoulder", "Right Shoulder", "Left Elbow", "Right Elbow",
+        "Left Wrist", "Right Wrist", "Left Pinky", "Right Pinky", "Left Index",
+        "Right Index", "Left Thumb", "Right Thumb", "Left Hip", "Right Hip",
+        "Left Knee", "Right Knee", "Left Ankle", "Right Ankle", "Left Heel",
+        "Right Heel", "Left Foot Index", "Right Foot Index"
+      ];
+
+      return {
+        timestamp,
+        landmarkIndex: index,
+        x: landmark.x * canvasElement.width, // Scale x-coordinate
+        y: landmark.y * canvasElement.height, // Scale y-coordinate
+        z: landmark.z,
+        label: keypointNames[index] // Include the label in the data
+      };
+    });
+    keypointsData.push(...keypoints);
+  }
+
     if (results.segmentationMask) {
         canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
         // Only overwrite existing pixels.
@@ -255,11 +439,13 @@ function onResults(results) {
         grid.updateLandmarks([]);
     }
 }
-const pose = new mpPose.Pose(options);
-pose.onResults(onResults);
-// Present a control panel through which the user can manipulate the solution
-// options.
-new controls.ControlPanel(controlsElement, {
+
+  const pose = new mpPose.Pose(options);
+  pose.onResults(onResults);
+
+  // Present a control panel through which the user can manipulate the solution
+  // options.
+  new controls.ControlPanel(controlsElement, {
     selfieMode: true,
     modelComplexity: 1,
     smoothLandmarks: true,
@@ -268,77 +454,53 @@ new controls.ControlPanel(controlsElement, {
     minDetectionConfidence: 0.5,
     minTrackingConfidence: 0.5,
     effect: "background"
-})
-    .add([
-    new controls.StaticText({ title: "MediaPipe Pose" }),
+  }).add([
+    new controls.StaticText({ title: "Movision - Pose Estimation" }),
     fpsControl,
-    new controls.Toggle({ title: "Selfie Mode", field: "selfieMode" }),
     new controls.SourcePicker({
-        onSourceChanged: () => {
-            // Resets because this model gives better results when reset between
-            // source changes.
-            pose.reset();
-        },
-        onFrame: async (input, size) => {
-            const aspect = size.height / size.width;
-            let width, height;
-            if (window.innerWidth > window.innerHeight) {
-                height = window.innerHeight;
-                width = height / aspect;
-            }
-            else {
-                width = window.innerWidth;
-                height = width * aspect;
-            }
-            canvasElement.width = width;
-            canvasElement.height = height;
-            await pose.send({ image: input });
+      onSourceChanged: () => {
+        // Resets because this model gives better results when reset between
+        // source changes.
+        pose.reset();
+      },
+      onFrame: async (input, size) => {
+        const aspect = size.height / size.width;
+        let width, height;
+        if (window.innerWidth > window.innerHeight) {
+          height = window.innerHeight;
+          width = height / aspect;
+        } else {
+          width = window.innerWidth;
+          height = width * aspect;
         }
+        canvasElement.width = width;
+        canvasElement.height = height;
+        await pose.send({ image: input });
+      }
     }),
     new controls.Slider({
-        title: "Model Complexity",
-        field: "modelComplexity",
-        discrete: ["Lite", "Full", "Heavy"]
-    }),
-    new controls.Toggle({
-        title: "Smooth Landmarks",
-        field: "smoothLandmarks"
-    }),
-    new controls.Toggle({
-        title: "Enable Segmentation",
-        field: "enableSegmentation"
-    }),
-    new controls.Toggle({
-        title: "Smooth Segmentation",
-        field: "smoothSegmentation"
+      title: "Min Detection Confidence",
+      field: "minDetectionConfidence",
+      range: [0, 1],
+      step: 0.01
     }),
     new controls.Slider({
-        title: "Min Detection Confidence",
-        field: "minDetectionConfidence",
-        range: [0, 1],
-        step: 0.01
-    }),
-    new controls.Slider({
-        title: "Min Tracking Confidence",
-        field: "minTrackingConfidence",
-        range: [0, 1],
-        step: 0.01
-    }),
-    new controls.Slider({
-        title: "Effect",
-        field: "effect",
-        discrete: { background: "Background", mask: "Foreground" }
+      title: "Min Tracking Confidence",
+      field: "minTrackingConfidence",
+      range: [0, 1],
+      step: 0.01
     })
-])
-    .on((x) => {
+  ]).on((x) => {
     const options = x;
     videoElement.classList.toggle("selfie", options.selfieMode);
     activeEffect = x["effect"];
     pose.setOptions(options);
-});
+  });
 
+  // Add a button to trigger the data export
+  document.getElementById('saveKeypointsButton').addEventListener('click', exportKeypointsToCSV);
 </script>
+
     <!-- JavaScript code ends here -->
 </body>
-
 </html>
